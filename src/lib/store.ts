@@ -3,17 +3,47 @@ import type { Quotation } from '../types/quotations';
 import { fetchQuotations } from './supabase';
 import { calculateVWMA } from './vwma';
 
+const STORAGE_KEYS = {
+  VWMA_PERIOD: 'btcai_vwma_period',
+  CHART_STATE: 'btcai_chart_state',
+} as const;
+
+function loadFromStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Failed to save ${key} to storage:`, error);
+  }
+}
+
+interface ChartState {
+  timeScalePosition: number;
+  isZoomed: boolean;
+}
+
 interface CryptoState {
   quotations: Quotation[];
   currentDirection: number;
   vwmaPeriod: number;
   isLoading: boolean;
   error: string | null;
+  chartState: ChartState;
 
   // Actions
   fetchInitialData: () => Promise<void>;
   pollNewData: () => Promise<void>;
   setVWMAPeriod: (period: number) => void;
+  setChartState: (state: ChartState) => void;
+  resetChartState: () => void;
 
   // Computed getters
   getVWMA: () => (number | undefined)[];
@@ -23,9 +53,13 @@ interface CryptoState {
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   quotations: [],
   currentDirection: 0,
-  vwmaPeriod: 20,
+  vwmaPeriod: loadFromStorage(STORAGE_KEYS.VWMA_PERIOD, 20),
   isLoading: false,
   error: null,
+  chartState: loadFromStorage(STORAGE_KEYS.CHART_STATE, {
+    timeScalePosition: 0,
+    isZoomed: false,
+  }),
 
   fetchInitialData: async () => {
     set({ isLoading: true, error: null });
@@ -63,6 +97,18 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   setVWMAPeriod: (period: number) => {
     set({ vwmaPeriod: period });
+    saveToStorage(STORAGE_KEYS.VWMA_PERIOD, period);
+  },
+
+  setChartState: (state: ChartState) => {
+    set({ chartState: state });
+    saveToStorage(STORAGE_KEYS.CHART_STATE, state);
+  },
+
+  resetChartState: () => {
+    const defaultState = { timeScalePosition: 0, isZoomed: false };
+    set({ chartState: defaultState });
+    saveToStorage(STORAGE_KEYS.CHART_STATE, defaultState);
   },
 
   getVWMA: () => {

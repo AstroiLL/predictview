@@ -1,21 +1,26 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { createChart, IChartApi, ISeriesApi, LineData, Time } from 'lightweight-charts';
 import { useCryptoStore } from '../lib/store';
 import type { Quotation } from '../types/quotations';
 
 interface ChartProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Chart({ className = '' }: ChartProps) {
+export function Chart({ className = '', style }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const priceLineRef = useRef<ISeriesApi<'Line'> | null>(null);
   const volumeBarRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const vwmaLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const [isRestored, setIsRestored] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const quotations = useCryptoStore((state) => state.quotations);
   const vwmaPeriod = useCryptoStore((state) => state.vwmaPeriod);
+  const chartState = useCryptoStore((state) => state.chartState);
+  const setChartState = useCryptoStore((state) => state.setChartState);
 
   // Инициализация графика
   useEffect(() => {
@@ -23,28 +28,28 @@ export function Chart({ className = '' }: ChartProps) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { color: '#0a0a0a' },
-        textColor: '#d1d5db',
+        background: { color: '#1a1f2e' },
+        textColor: '#a0a0a0',
       },
       grid: {
-        vertLines: { color: '#1f1f1f' },
-        horzLines: { color: '#1f1f1f' },
+        vertLines: { color: '#2a2f3a' },
+        horzLines: { color: '#2a2f3a' },
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       timeScale: {
-        borderColor: '#2a2a2a',
+        borderColor: '#2a2f3a',
         timeVisible: true,
         secondsVisible: false,
       },
       rightPriceScale: {
-        borderColor: '#2a2a2a',
+        borderColor: '#2a2f3a',
       },
     });
 
     // Line series для цены
     const priceLine = chart.addLineSeries({
-      color: '#f59e0b',
+      color: '#f97316',
       lineWidth: 2,
       title: 'BTC Price',
       priceLineVisible: true,
@@ -53,7 +58,7 @@ export function Chart({ className = '' }: ChartProps) {
 
     // Histogram для объемов
     const volumeBar = chart.addHistogramSeries({
-      color: '#26a69a',
+      color: '#10b981',
       priceFormat: {
         type: 'volume',
       },
@@ -69,7 +74,7 @@ export function Chart({ className = '' }: ChartProps) {
 
     // Line series для VWMA
     const vwmaLine = chart.addLineSeries({
-      color: '#3b82f6',
+      color: '#8b5cf6',
       lineWidth: 1,
       title: `VWMA(${vwmaPeriod})`,
       priceLineVisible: false,
@@ -80,6 +85,24 @@ export function Chart({ className = '' }: ChartProps) {
     priceLineRef.current = priceLine;
     volumeBarRef.current = volumeBar;
     vwmaLineRef.current = vwmaLine;
+
+    // Восстановление состояния после инициализации
+    const restoreState = () => {
+      if (!chartRef.current) return;
+
+      const timeScale = chartRef.current.timeScale();
+
+      // Восстанавливаем позицию если она была сохранена и пользователь взаимодействовал
+      if (chartState.isZoomed) {
+        timeScale.scrollToPosition(chartState.timeScalePosition, false);
+        setHasUserInteracted(true);
+      }
+
+      setIsRestored(true);
+    };
+
+    // Отложенное восстановление состояния
+    setTimeout(restoreState, 100);
 
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
@@ -120,8 +143,8 @@ export function Chart({ className = '' }: ChartProps) {
       time: (new Date(q.time).getTime() / 1000) as Time,
       value: q.vol,
       color: q.close >= (quotations[quotations.indexOf(q) - 1]?.close || q.close)
-        ? '#26a69a'
-        : '#ef5350',
+        ? '#10b981'
+        : '#ec4899',
     }));
   }, [quotations]);
 
@@ -144,19 +167,56 @@ export function Chart({ className = '' }: ChartProps) {
 
   // Обновление данных на графике
   useEffect(() => {
-    if (!priceLineRef.current || !volumeBarRef.current || !vwmaLineRef.current) return;
+    if (!priceLineRef.current || !volumeBarRef.current || !vwmaLineRef.current || !chartRef.current) return;
+
+    // Сохраняем текущий visible range перед обновлением данных
+    const timeScale = chartRef.current.timeScale();
+    const visibleRange = timeScale.getVisibleRange();
 
     priceLineRef.current.setData(chartData);
     volumeBarRef.current.setData(volumeData);
     vwmaLineRef.current.setData(vwmaData);
 
-    // Подгонка содержимого под данные
-    if (chartRef.current && chartData.length > 0) {
-      chartRef.current.timeScale().fitContent();
+    // Восстанавливаем положение пользователя или подгоняем под новые данные
+    if (chartData.length > 0) {
+      if (hasUserInteracted && visibleRange) {
+        // Если пользователь взаимодействовал - оставляем его позицию
+        // Данные обновились, но позиция остается
+      } else {
+        // Иначе подгоняем под новые данные
+        timeScale.fitContent();
+      }
     }
-  }, [chartData, volumeData, vwmaData]);
+  }, [chartData, volumeData, vwmaData, isRestored, hasUserInteracted]);
+
+  // Сохранение состояния графика при изменении пользователем
+  useEffect(() => {
+    if (!chartRef.current || !isRestored) return;
+
+    const timeScale = chartRef.current.timeScale();
+
+    const handleVisibleChange = () => {
+      if (!chartRef.current) return;
+
+      const visibleRange = timeScale.getVisibleRange();
+
+      if (visibleRange) {
+        setHasUserInteracted(true);
+        setChartState({
+          timeScalePosition: 0,
+          isZoomed: true,
+        });
+      }
+    };
+
+    timeScale.subscribeVisibleLogicalRangeChange(handleVisibleChange);
+
+    return () => {
+      timeScale.unsubscribeVisibleLogicalRangeChange(handleVisibleChange);
+    };
+  }, [isRestored, setChartState]);
 
   return (
-    <div ref={chartContainerRef} className={className} />
+    <div ref={chartContainerRef} className={className} style={style} />
   );
 }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#f97316"/>
+
+  <!-- BTC Symbol -->
+  <g fill="#ffffff">
+    <!-- Large B -->
+    <path d="M18 14h12c4.4 0 8 3.6 8 8 0 3.5-2.2 6.5-5.5 7.7 3.9 1 6.5 4.3 6.5 8.3 0 4.4-3.6 8-8 8H18V14zm6 6v8h5c2.2 0 4-1.8 4-4s-1.8-4-4-4h-5zm0 14v8h6c2.2 0 4-1.8 4-4s-1.8-4-4-4h-6z"/>
+
+    <!-- Vertical lines through B -->
+    <rect x="21" y="10" width="3" height="44" fill="#ffffff"/>
+    <rect x="40" y="10" width="3" height="44" fill="#ffffff"/>
+  </g>
+</svg>
