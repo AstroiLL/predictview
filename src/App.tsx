@@ -187,8 +187,8 @@ function App() {
                 </label>
                 <input
                   type="range"
-                  min="5"
-                  max="50"
+                  min="10"
+                  max="100"
                   value={vwmaPeriod}
                   onChange={(e) => setVWMAPeriod(parseInt(e.target.value))}
                   className="w-full h-2 rounded-lg appearance-none cursor-pointer"
@@ -198,8 +198,8 @@ function App() {
                   }}
                 />
                 <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                  <span>5</span>
-                  <span>50</span>
+                  <span>10</span>
+                  <span>100</span>
                 </div>
               </div>
             </div>
