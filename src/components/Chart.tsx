@@ -13,14 +13,15 @@ export function Chart({ className = '', style }: ChartProps) {
   const chartRef = useRef<IChartApi | null>(null);
   const priceLineRef = useRef<ISeriesApi<'Line'> | null>(null);
   const volumeBarRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const vwmaLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const vwmaLinesRef = useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
   const [isRestored, setIsRestored] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const quotations = useCryptoStore((state) => state.quotations);
-  const vwmaPeriod = useCryptoStore((state) => state.vwmaPeriod);
+  const vwmaIndicators = useCryptoStore((state) => state.vwmaIndicators);
   const chartState = useCryptoStore((state) => state.chartState);
   const setChartState = useCryptoStore((state) => state.setChartState);
+  const getVWMAForIndicator = useCryptoStore((state) => state.getVWMAForIndicator);
 
   // Инициализация графика
   useEffect(() => {
@@ -72,19 +73,9 @@ export function Chart({ className = '', style }: ChartProps) {
       },
     });
 
-    // Line series для VWMA
-    const vwmaLine = chart.addLineSeries({
-      color: '#8b5cf6',
-      lineWidth: 1,
-      title: `VWMA(${vwmaPeriod})`,
-      priceLineVisible: false,
-      lastValueVisible: true,
-    });
-
     chartRef.current = chart;
     priceLineRef.current = priceLine;
     volumeBarRef.current = volumeBar;
-    vwmaLineRef.current = vwmaLine;
 
     // Восстановление состояния после инициализации
     const restoreState = () => {
@@ -121,14 +112,51 @@ export function Chart({ className = '', style }: ChartProps) {
     };
   }, []);
 
-  // Обновление VWMA при изменении периода
+  // Управление VWMA линиями
   useEffect(() => {
-    if (vwmaLineRef.current) {
-      vwmaLineRef.current.applyOptions({
-        title: `VWMA(${vwmaPeriod})`,
-      });
+    if (!chartRef.current) return;
+
+    const chart = chartRef.current;
+    const currentMap = vwmaLinesRef.current;
+    const currentIds = new Set(currentMap.keys());
+    const newIds = new Set(vwmaIndicators.map(ind => ind.id));
+
+    // Удаляем линии, которых больше нет
+    for (const id of currentIds) {
+      if (!newIds.has(id)) {
+        const series = currentMap.get(id);
+        if (series) {
+          chart.removeSeries(series);
+          currentMap.delete(id);
+        }
+      }
     }
-  }, [vwmaPeriod]);
+
+    // Добавляем или обновляем линии
+    for (const indicator of vwmaIndicators) {
+      if (!currentMap.has(indicator.id)) {
+        const vwmaLine = chart.addLineSeries({
+          color: indicator.color,
+          lineWidth: 1,
+          title: `VWMA(${indicator.period})`,
+          priceLineVisible: false,
+          lastValueVisible: true,
+        });
+        currentMap.set(indicator.id, vwmaLine);
+      } else {
+        // Обновляем настройки существующей линии
+        const series = currentMap.get(indicator.id);
+        if (series) {
+          series.applyOptions({
+            color: indicator.color,
+            title: `VWMA(${indicator.period})`,
+          });
+        }
+      }
+    }
+
+    vwmaLinesRef.current = currentMap;
+  }, [vwmaIndicators]);
 
   // Подготовка данных для графика
   const chartData = useMemo(() => {
@@ -148,26 +176,39 @@ export function Chart({ className = '', style }: ChartProps) {
     }));
   }, [quotations]);
 
-  const vwmaData = useMemo(() => {
-    const { getVWMA } = useCryptoStore.getState();
-    const vwmaValues = getVWMA();
+  // Подготовка данных для каждого VWMA индикатора
+  const vwmaDataMap = useMemo(() => {
+    const map = new Map<string, LineData[]>();
 
-    return quotations
-      .map((q: Quotation, index: number) => {
-        const value = vwmaValues[index];
-        if (value === undefined) return null;
+    for (const indicator of vwmaIndicators) {
+      if (!indicator.visible) {
+        map.set(indicator.id, []);
+        continue;
+      }
 
-        return {
-          time: (new Date(q.time).getTime() / 1000) as Time,
-          value,
-        } as LineData;
-      })
-      .filter((d): d is LineData => d !== null);
-  }, [quotations, vwmaPeriod]);
+      const vwmaValues = getVWMAForIndicator(indicator);
+
+      const data = quotations
+        .map((q: Quotation, index: number) => {
+          const value = vwmaValues[index];
+          if (value === undefined) return null;
+
+          return {
+            time: (new Date(q.time).getTime() / 1000) as Time,
+            value,
+          } as LineData;
+        })
+        .filter((d): d is LineData => d !== null);
+
+      map.set(indicator.id, data);
+    }
+
+    return map;
+  }, [quotations, vwmaIndicators, getVWMAForIndicator]);
 
   // Обновление данных на графике
   useEffect(() => {
-    if (!priceLineRef.current || !volumeBarRef.current || !vwmaLineRef.current || !chartRef.current) return;
+    if (!priceLineRef.current || !volumeBarRef.current || !chartRef.current) return;
 
     // Сохраняем текущий visible range перед обновлением данных
     const timeScale = chartRef.current.timeScale();
@@ -175,7 +216,12 @@ export function Chart({ className = '', style }: ChartProps) {
 
     priceLineRef.current.setData(chartData);
     volumeBarRef.current.setData(volumeData);
-    vwmaLineRef.current.setData(vwmaData);
+
+    // Обновляем данные для каждой VWMA линии
+    for (const [id, series] of vwmaLinesRef.current) {
+      const data = vwmaDataMap.get(id) || [];
+      series.setData(data);
+    }
 
     // Восстанавливаем положение пользователя или подгоняем под новые данные
     if (chartData.length > 0) {
@@ -187,7 +233,7 @@ export function Chart({ className = '', style }: ChartProps) {
         timeScale.fitContent();
       }
     }
-  }, [chartData, volumeData, vwmaData, isRestored, hasUserInteracted]);
+  }, [chartData, volumeData, vwmaDataMap, isRestored, hasUserInteracted]);
 
   // Сохранение состояния графика при изменении пользователем
   useEffect(() => {

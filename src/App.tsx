@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Chart } from './components/Chart';
 import { DirectionVector } from './components/DirectionVector';
+import { VWMAManager } from './components/VWMAManager';
 import { useCryptoStore } from './lib/store';
 
 function App() {
@@ -9,8 +10,6 @@ function App() {
   const isLoading = useCryptoStore((state) => state.isLoading);
   const error = useCryptoStore((state) => state.error);
   const resetChartState = useCryptoStore((state) => state.resetChartState);
-  const vwmaPeriod = useCryptoStore((state) => state.vwmaPeriod);
-  const setVWMAPeriod = useCryptoStore((state) => state.setVWMAPeriod);
   const getCurrentQuote = useCryptoStore((state) => state.getCurrentQuote);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -172,37 +171,8 @@ function App() {
               <DirectionVector className="w-full aspect-square" />
             </div>
 
-            {/* VWMA Settings */}
-            <div className="card mb-4">
-              <div className="card-header">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" style={{ color: 'var(--accent-purple)' }} viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                </svg>
-                <span className="card-title">Настройки VWMA</span>
-              </div>
-              <div className="mb-4">
-                <label className="flex items-center justify-between mb-2">
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Период</span>
-                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{vwmaPeriod}</span>
-                </label>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  value={vwmaPeriod}
-                  onChange={(e) => setVWMAPeriod(parseInt(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    backgroundColor: 'var(--border-color)',
-                    accentColor: 'var(--accent-purple)'
-                  }}
-                />
-                <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                  <span>10</span>
-                  <span>100</span>
-                </div>
-              </div>
-            </div>
+            {/* VWMA Manager */}
+            <VWMAManager className="mb-4" />
 
             {/* Auto Update Toggle */}
             <div className="card mb-4">

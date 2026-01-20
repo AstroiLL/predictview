@@ -24,3 +24,10 @@ export interface VolumeData {
   value: number;
   color: string;
 }
+
+export interface VWMAIndicator {
+  id: string;
+  period: number;
+  color: string;
+  visible: boolean;
+}
