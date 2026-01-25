@@ -13,12 +13,18 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 export async function fetchQuotations(after?: Date): Promise<Quotation[]> {
   let query = supabase
     .from('quotations')
-    .select('*')
-    .order('time', { ascending: true })
-    .limit(1000);
+    .select('*');
 
   if (after) {
-    query = query.gt('time', after.toISOString());
+    // При дозагрузке: получаем новые записи после указанного времени
+    query = query
+      .order('time', { ascending: true })
+      .gt('time', after.toISOString());
+  } else {
+    // При начальной загрузке: получаем последние 1000 записей
+    query = query
+      .order('time', { ascending: false })
+      .limit(1000);
   }
 
   const { data, error } = await query;
@@ -28,8 +34,15 @@ export async function fetchQuotations(after?: Date): Promise<Quotation[]> {
     throw error;
   }
 
-  return (data || []).map((q: any) => ({
+  let result = (data || []).map((q: any) => ({
     ...q,
     time: new Date(q.time),
   }));
+
+  // Если это начальная загрузка (без after), сортируем по возрастанию времени
+  if (!after) {
+    result = result.reverse();
+  }
+
+  return result;
 }
