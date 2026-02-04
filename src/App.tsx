@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Chart } from './components/Chart';
 import { DirectionVector } from './components/DirectionVector';
 import { VWMAManager } from './components/VWMAManager';
+import { VWMAStatus } from './components/VWMAStatus';
 import { useCryptoStore } from './lib/store';
 
 function App() {
@@ -159,6 +160,9 @@ function App() {
                 <p className="stat-label">BTC/USD</p>
               </div>
             )}
+
+            {/* VWMA Status */}
+            <VWMAStatus className="mb-4" />
 
             {/* Direction Vector */}
             <div className="card mb-4">

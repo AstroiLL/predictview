@@ -25,14 +25,13 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
-function generateRandomColor(): string {
-  const colors = [
-    '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444',
-    '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#84cc16',
-    '#3b82f6', '#a855f7', '#d946ef', '#f43f5e', '#22c55e'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+// Фиксированные VWMA индикаторы с предустановленными цветами и периодами
+export const FIXED_VWMA_INDICATORS: VWMAIndicator[] = [
+  { id: 'vwma-gray', period: 30, color: '#808080', visible: true },      // Серый - 30
+  { id: 'vwma-blue', period: 60, color: '#0066ff', visible: true },      // Ярко синий - 60
+  { id: 'vwma-green', period: 240, color: '#00ff00', visible: true },    // Ярко зеленый - 240
+  { id: 'vwma-red', period: 960, color: '#ff0000', visible: true },      // Ярко красный - 960
+];
 
 interface ChartState {
   timeScalePosition: number;
@@ -50,8 +49,6 @@ interface CryptoState {
   // Actions
   fetchInitialData: () => Promise<void>;
   pollNewData: () => Promise<void>;
-  addVWMAIndicator: (period: number, color?: string) => void;
-  removeVWMAIndicator: (id: string) => void;
   updateVWMAIndicator: (id: string, updates: Partial<Omit<VWMAIndicator, 'id'>>) => void;
   toggleVWMAIndicator: (id: string) => void;
   setChartState: (state: ChartState) => void;
@@ -60,14 +57,13 @@ interface CryptoState {
   // Computed getters
   getVWMAForIndicator: (indicator: VWMAIndicator) => (number | undefined)[];
   getCurrentQuote: () => Quotation | null;
+  getVWMALastValues: () => Map<string, number | undefined>;
 }
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   quotations: [],
   currentDirection: 0,
-  vwmaIndicators: loadFromStorage<VWMAIndicator[]>(STORAGE_KEYS.VWMA_INDICATORS, [
-    { id: 'default', period: 20, color: '#8b5cf6', visible: true }
-  ]),
+  vwmaIndicators: loadFromStorage<VWMAIndicator[]>(STORAGE_KEYS.VWMA_INDICATORS, FIXED_VWMA_INDICATORS),
   isLoading: false,
   error: null,
   chartState: loadFromStorage(STORAGE_KEYS.CHART_STATE, {
@@ -109,26 +105,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     }
   },
 
-  addVWMAIndicator: (period: number, color?: string) => {
-    const { vwmaIndicators } = get();
-    const newIndicator: VWMAIndicator = {
-      id: `vwma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      period,
-      color: color || generateRandomColor(),
-      visible: true,
-    };
-    const updated = [...vwmaIndicators, newIndicator];
-    set({ vwmaIndicators: updated });
-    saveToStorage(STORAGE_KEYS.VWMA_INDICATORS, updated);
-  },
-
-  removeVWMAIndicator: (id: string) => {
-    const { vwmaIndicators } = get();
-    const updated = vwmaIndicators.filter(ind => ind.id !== id);
-    set({ vwmaIndicators: updated });
-    saveToStorage(STORAGE_KEYS.VWMA_INDICATORS, updated);
-  },
-
   updateVWMAIndicator: (id: string, updates: Partial<Omit<VWMAIndicator, 'id'>>) => {
     const { vwmaIndicators } = get();
     const updated = vwmaIndicators.map(ind =>
@@ -166,5 +142,20 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   getCurrentQuote: () => {
     const { quotations } = get();
     return quotations.length > 0 ? quotations[quotations.length - 1] : null;
+  },
+
+  getVWMALastValues: () => {
+    const { quotations, vwmaIndicators } = get();
+    const lastValues = new Map<string, number | undefined>();
+    
+    if (quotations.length === 0) return lastValues;
+    
+    vwmaIndicators.forEach(indicator => {
+      const vwmaValues = calculateVWMA(quotations, indicator.period);
+      const lastValue = vwmaValues[vwmaValues.length - 1];
+      lastValues.set(indicator.id, lastValue);
+    });
+    
+    return lastValues;
   },
 }));
