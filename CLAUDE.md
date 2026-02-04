@@ -149,27 +149,30 @@ Components (Chart, DirectionVector)
 
 | File | Purpose |
 |------|---------|
-| `src/lib/store.ts` | Zustand store with polling, VWMA computation |
+| `src/lib/store.ts` | Zustand store with polling, 4 fixed VWMA indicators |
 | `src/lib/supabase.ts` | Supabase client, fetchQuotations() |
 | `src/lib/vwma.ts` | calculateVWMA() - Volume Weighted MA |
 | `src/types/quotations.ts` | TypeScript types for Quotation |
+| `src/components/VWMAStatus.tsx` | VWMA indicator comparison and signal display |
 
 ### State Management (Zustand)
 
 The store (`useCryptoStore`) manages:
-- `quotations[]` - array from Supabase
+- `quotations[]` - array from Supabase (3000 records buffer)
 - `currentDirection` - latest dir value (0=down, 1=up)
-- `vwmaPeriod` - configurable period (default 20)
+- `vwmaIndicators[]` - 4 fixed VWMA indicators (gray/30, blue/60, green/240, red/960)
 - `isLoading`, `error` - UI state
 
 Actions:
-- `fetchInitialData()` - loads first batch
+- `fetchInitialData()` - loads first batch (3000 records)
 - `pollNewData()` - incremental fetch (uses `gt('time', afterDate)`)
-- `setVWMAPeriod(n)` - update VWMA period
+- `updateVWMAIndicator(id, updates)` - update color/period/visibility
+- `toggleVWMAIndicator(id)` - show/hide indicator
 
 Computed getters:
-- `getVWMA()` - returns calculated VWMA array
+- `getVWMAForIndicator(indicator)` - returns calculated VWMA array for specific indicator
 - `getCurrentQuote()` - returns latest quotation
+- `getVWMALastValues()` - returns Map of last VWMA values for all indicators
 
 ### Supabase Integration
 
@@ -201,6 +204,11 @@ liq      INTEGER      -- Liquidity (nullable)
 - Green arrow up (dir = 1)
 - Red arrow down (dir = 0)
 
+**VWMAStatus.tsx** - VWMA indicator comparison panel:
+- Compares blue vs green, blue vs red, green vs red positions
+- Displays trading signal (STRONG GROWTH/GROWTH/SIDEWAYS/DECLINE/STRONG DECLINE)
+- Updates in real-time with price data
+
 ### VWMA Calculation
 
 Formula: `VWMA = Σ(Price × Volume) / Σ(Volume)` over N periods
@@ -209,4 +217,4 @@ Implemented in `src/lib/vwma.ts`. Returns `number | undefined` for each data poi
 
 ## Polling Strategy
 
-App polls every 10 seconds (see `App.tsx` useEffect). Polling fetches only new records via `gt('time', lastTime)` to minimize data transfer.
+App polls every 60 seconds (configurable via autoUpdate toggle). Polling fetches only new records via `gt('time', lastTime)` to minimize data transfer. Initial load fetches 3000 records for 3x larger display range.
