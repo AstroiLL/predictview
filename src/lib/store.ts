@@ -17,6 +17,34 @@ function loadFromStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
+// Функция для загрузки VWMA индикаторов с миграцией на фиксированный набор
+function loadVWMAIndicators(): VWMAIndicator[] {
+  try {
+    const item = localStorage.getItem(STORAGE_KEYS.VWMA_INDICATORS);
+    const storedIndicators: VWMAIndicator[] = item ? JSON.parse(item) : [];
+    
+    // Создаем мапу сохраненных настроек по ID
+    const storedMap = new Map(storedIndicators.map(ind => [ind.id, ind]));
+    
+    // Возвращаем фиксированные индикаторы, применяя сохраненные настройки если они есть
+    return FIXED_VWMA_INDICATORS.map(fixed => {
+      const stored = storedMap.get(fixed.id);
+      if (stored) {
+        // Применяем сохраненные цвет, период и видимость
+        return {
+          ...fixed,
+          color: stored.color || fixed.color,
+          period: stored.period || fixed.period,
+          visible: stored.visible !== undefined ? stored.visible : fixed.visible,
+        };
+      }
+      return fixed;
+    });
+  } catch {
+    return FIXED_VWMA_INDICATORS;
+  }
+}
+
 function saveToStorage<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -32,6 +60,31 @@ export const FIXED_VWMA_INDICATORS: VWMAIndicator[] = [
   { id: 'vwma-green', period: 240, color: '#00ff00', visible: true },    // Ярко зеленый - 240
   { id: 'vwma-red', period: 960, color: '#ff0000', visible: true },      // Ярко красный - 960
 ];
+
+// Функция для очистки старых индикаторов из localStorage
+function migrateVWMAIndicators(): void {
+  try {
+    const item = localStorage.getItem(STORAGE_KEYS.VWMA_INDICATORS);
+    if (!item) return;
+    
+    const storedIndicators: VWMAIndicator[] = JSON.parse(item);
+    const fixedIds = new Set(FIXED_VWMA_INDICATORS.map(ind => ind.id));
+    
+    // Проверяем, есть ли старые индикаторы (не из фиксированного набора)
+    const hasOldIndicators = storedIndicators.some(ind => !fixedIds.has(ind.id));
+    
+    if (hasOldIndicators) {
+      console.log('Migrating VWMA indicators to fixed set...');
+      // Сохраняем только фиксированные индикаторы
+      localStorage.setItem(STORAGE_KEYS.VWMA_INDICATORS, JSON.stringify(FIXED_VWMA_INDICATORS));
+    }
+  } catch (error) {
+    console.error('Failed to migrate VWMA indicators:', error);
+  }
+}
+
+// Запускаем миграцию при загрузке модуля
+migrateVWMAIndicators();
 
 interface ChartState {
   timeScalePosition: number;
@@ -63,7 +116,7 @@ interface CryptoState {
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   quotations: [],
   currentDirection: 0,
-  vwmaIndicators: loadFromStorage<VWMAIndicator[]>(STORAGE_KEYS.VWMA_INDICATORS, FIXED_VWMA_INDICATORS),
+  vwmaIndicators: loadVWMAIndicators(),
   isLoading: false,
   error: null,
   chartState: loadFromStorage(STORAGE_KEYS.CHART_STATE, {
