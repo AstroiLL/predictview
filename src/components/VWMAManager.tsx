@@ -17,9 +17,9 @@ export function VWMAManager({ className = '' }: VWMAManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
 
   const handleAddIndicator = () => {
-    if (newPeriod >= 5 && newPeriod <= 500) {
+    if (newPeriod >= 60 && newPeriod <= 1000) {
       addVWMAIndicator(newPeriod);
-      setNewPeriod(20);
+      setNewPeriod(60);
       setShowAddForm(false);
     }
   };
@@ -29,7 +29,7 @@ export function VWMAManager({ className = '' }: VWMAManagerProps) {
   };
 
   const handlePeriodChange = (id: string, period: number) => {
-    if (period >= 5 && period <= 500) {
+    if (period >= 60 && period <= 1000) {
       updateVWMAIndicator(id, { period });
     }
   };
@@ -68,15 +68,15 @@ export function VWMAManager({ className = '' }: VWMAManagerProps) {
         {showAddForm ? (
           <div className="p-3 rounded-lg mb-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <label className="block text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
-              Период (5-500)
+              Период (60-1000)
             </label>
             <div className="flex gap-2 mb-3">
               <input
                 type="number"
-                min="5"
-                max="500"
+                min="60"
+                max="1000"
                 value={newPeriod}
-                onChange={(e) => setNewPeriod(parseInt(e.target.value) || 20)}
+                onChange={(e) => setNewPeriod(parseInt(e.target.value) || 60)}
                 className="flex-1 px-3 py-2 rounded-lg text-sm"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
@@ -88,7 +88,7 @@ export function VWMAManager({ className = '' }: VWMAManagerProps) {
             <div className="flex gap-2">
               <button
                 onClick={handleAddIndicator}
-                disabled={!newPeriod || newPeriod < 5 || newPeriod > 500}
+                disabled={!newPeriod || newPeriod < 60 || newPeriod > 1000}
                 className="flex-1 px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                 style={{ backgroundColor: 'var(--accent-purple)' }}
               >
@@ -97,7 +97,7 @@ export function VWMAManager({ className = '' }: VWMAManagerProps) {
               <button
                 onClick={() => {
                   setShowAddForm(false);
-                  setNewPeriod(20);
+                  setNewPeriod(60);
                 }}
                 className="px-3 py-2 rounded-lg text-sm font-medium"
                 style={{ color: 'var(--text-secondary)' }}
@@ -180,8 +180,8 @@ function VWMAIndicatorItem({
           <div className="flex items-center gap-1 flex-1">
             <input
               type="number"
-              min="5"
-              max="500"
+              min="60"
+              max="1000"
               value={period}
               onChange={(e) => setPeriod(parseInt(e.target.value) || indicator.period)}
               className="w-16 px-2 py-1 rounded text-sm"
