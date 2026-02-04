@@ -21,10 +21,10 @@ export async function fetchQuotations(after?: Date): Promise<Quotation[]> {
       .order('time', { ascending: true })
       .gt('time', after.toISOString());
   } else {
-    // При начальной загрузке: получаем последние 1000 записей
+    // При начальной загрузке: получаем последние 3000 записей
     query = query
       .order('time', { ascending: false })
-      .limit(1000);
+      .limit(3000);
   }
 
   const { data, error } = await query;
