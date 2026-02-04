@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Quotation } from '../types/quotations';
+import type { Quotation, QuotationRaw } from '../types/quotations';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
@@ -34,7 +34,7 @@ export async function fetchQuotations(after?: Date): Promise<Quotation[]> {
     throw error;
   }
 
-  let result = (data || []).map((q: any) => ({
+  let result: Quotation[] = (data || []).map((q: QuotationRaw) => ({
     ...q,
     time: new Date(q.time),
   }));

@@ -1,3 +1,13 @@
+// Тип для сырых данных из Supabase (время в виде строки)
+export interface QuotationRaw {
+  time: string;
+  close: number;
+  vol: number;
+  dir: number;
+  liq: number | null;
+}
+
+// Тип для обработанных данных (время в виде Date)
 export interface Quotation {
   time: Date;
   close: number;

@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useCryptoStore } from '../lib/store';
+import { calculateVWMA } from '../lib/vwma';
 
 interface VWMAStatusProps {
   className?: string;
@@ -6,9 +8,21 @@ interface VWMAStatusProps {
 
 export function VWMAStatus({ className = '' }: VWMAStatusProps) {
   const vwmaIndicators = useCryptoStore((state) => state.vwmaIndicators);
-  const getVWMALastValues = useCryptoStore((state) => state.getVWMALastValues);
+  const quotations = useCryptoStore((state) => state.quotations);
 
-  const lastValues = getVWMALastValues();
+  // Мемоизация последних значений VWMA
+  const lastValues = useMemo(() => {
+    const values = new Map<string, number | undefined>();
+    
+    if (quotations.length === 0) return values;
+    
+    vwmaIndicators.forEach(indicator => {
+      const vwmaValues = calculateVWMA(quotations, indicator.period);
+      values.set(indicator.id, vwmaValues[vwmaValues.length - 1]);
+    });
+    
+    return values;
+  }, [quotations, vwmaIndicators]);
 
   // Получаем значения для сравнения (серый не учитывается)
   const blueValue = lastValues.get('vwma-blue');

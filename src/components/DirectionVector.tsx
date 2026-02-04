@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useCryptoStore } from '../lib/store';
 
 interface DirectionVectorProps {
@@ -5,7 +6,10 @@ interface DirectionVectorProps {
 }
 
 export function DirectionVector({ className = '' }: DirectionVectorProps) {
-  const currentQuote = useCryptoStore((state) => state.getCurrentQuote());
+  const quotations = useCryptoStore((state) => state.quotations);
+  const currentQuote = useMemo(() => {
+    return quotations.length > 0 ? quotations[quotations.length - 1] : null;
+  }, [quotations]);
 
   if (!currentQuote) {
     return (

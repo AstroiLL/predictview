@@ -91,6 +91,61 @@ interface ChartState {
   isZoomed: boolean;
 }
 
+// Кэш для VWMA значений
+interface VWMACache {
+  values: Map<string, (number | undefined)[]>;
+  lastValues: Map<string, number | undefined>;
+  quotationsLength: number;
+  indicatorsKey: string;
+}
+
+let vwmaCache: VWMACache | null = null;
+
+// Генерация ключа для индикаторов
+function getIndicatorsKey(indicators: VWMAIndicator[]): string {
+  return indicators.map(i => `${i.id}:${i.period}:${i.visible}`).join('|');
+}
+
+// Получение кэшированных VWMA значений
+function getCachedVWMA(
+  quotations: Quotation[],
+  indicators: VWMAIndicator[]
+): { values: Map<string, (number | undefined)[]>; lastValues: Map<string, number | undefined> } {
+  const indicatorsKey = getIndicatorsKey(indicators);
+  
+  // Проверяем валидность кэша
+  if (
+    vwmaCache &&
+    vwmaCache.quotationsLength === quotations.length &&
+    vwmaCache.indicatorsKey === indicatorsKey
+  ) {
+    return {
+      values: vwmaCache.values,
+      lastValues: vwmaCache.lastValues,
+    };
+  }
+  
+  // Пересчитываем VWMA для всех индикаторов
+  const values = new Map<string, (number | undefined)[]>();
+  const lastValues = new Map<string, number | undefined>();
+  
+  indicators.forEach(indicator => {
+    const vwmaValues = calculateVWMA(quotations, indicator.period);
+    values.set(indicator.id, vwmaValues);
+    lastValues.set(indicator.id, vwmaValues[vwmaValues.length - 1]);
+  });
+  
+  // Обновляем кэш
+  vwmaCache = {
+    values,
+    lastValues,
+    quotationsLength: quotations.length,
+    indicatorsKey,
+  };
+  
+  return { values, lastValues };
+}
+
 interface CryptoState {
   quotations: Quotation[];
   currentDirection: number;
@@ -188,8 +243,9 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   },
 
   getVWMAForIndicator: (indicator: VWMAIndicator) => {
-    const { quotations } = get();
-    return calculateVWMA(quotations, indicator.period);
+    const { quotations, vwmaIndicators } = get();
+    const { values } = getCachedVWMA(quotations, vwmaIndicators);
+    return values.get(indicator.id) || calculateVWMA(quotations, indicator.period);
   },
 
   getCurrentQuote: () => {
@@ -199,16 +255,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   getVWMALastValues: () => {
     const { quotations, vwmaIndicators } = get();
-    const lastValues = new Map<string, number | undefined>();
-    
-    if (quotations.length === 0) return lastValues;
-    
-    vwmaIndicators.forEach(indicator => {
-      const vwmaValues = calculateVWMA(quotations, indicator.period);
-      const lastValue = vwmaValues[vwmaValues.length - 1];
-      lastValues.set(indicator.id, lastValue);
-    });
-    
+    const { lastValues } = getCachedVWMA(quotations, vwmaIndicators);
     return lastValues;
   },
 }));

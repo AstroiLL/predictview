@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chart } from './components/Chart';
 import { DirectionVector } from './components/DirectionVector';
 import { VWMAManager } from './components/VWMAManager';
@@ -11,13 +11,15 @@ function App() {
   const isLoading = useCryptoStore((state) => state.isLoading);
   const error = useCryptoStore((state) => state.error);
   const resetChartState = useCryptoStore((state) => state.resetChartState);
-  const getCurrentQuote = useCryptoStore((state) => state.getCurrentQuote);
+  const quotations = useCryptoStore((state) => state.quotations);
 
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'chart' | 'settings'>('chart');
   const [autoUpdate, setAutoUpdate] = useState(true);
 
-  const currentQuote = getCurrentQuote();
+  const currentQuote = useMemo(() => {
+    return quotations.length > 0 ? quotations[quotations.length - 1] : null;
+  }, [quotations]);
 
   // Загрузка начальных данных
   useEffect(() => {
@@ -50,20 +52,20 @@ function App() {
   }, [pollNewData, autoUpdate]);
 
   // Обработчик кнопки "To End"
-  const handleToEnd = () => {
+  const handleToEnd = useCallback(() => {
     resetChartState();
     pollNewData();
-  };
+  }, [resetChartState, pollNewData]);
 
   // Форматирование цены
-  const formatPrice = (price: number) => {
+  const formatPrice = useCallback((price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(price);
-  };
+  }, []);
 
   return (
     <div className="flex h-screen">

@@ -205,10 +205,10 @@ export function Chart({ className = '', style }: ChartProps) {
   }, [quotations]);
 
   const volumeData = useMemo(() => {
-    return quotations.map((q: Quotation) => ({
+    return quotations.map((q: Quotation, index: number) => ({
       time: (new Date(q.time).getTime() / 1000) as Time,
       value: q.vol,
-      color: q.close >= (quotations[quotations.indexOf(q) - 1]?.close || q.close)
+      color: q.close >= (quotations[index - 1]?.close || q.close)
         ? '#10b981'
         : '#ec4899',
     }));
